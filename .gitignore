@@ -1,0 +1,8 @@
+# local environment / runtime state (created automatically)
+.venv/
+__pycache__/
+*.pyc
+debug/
+config.json
+.state.json
+.learned.json
