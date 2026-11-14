@@ -40,4 +40,4 @@ Click timings are documented in `bgsi_enchanter/config.py`.
 - **Clicks do nothing:** don't run Roblox as administrator, or run the bot as administrator too.
 - **Something goes wrong:** check `debug/last_run.log` and the error screenshots in `debug/`.
 
-<sub>Made with the help of AI.</sub>
+Made with the help of AI.
