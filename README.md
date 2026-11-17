@@ -16,13 +16,16 @@ Use at your own risk: automating Roblox can break its Terms of Use.
 2. Run **`start.bat`**, pick your two enchants, press **Test detection**, then **Start**.
 3. **F8** stops the bot, and so does moving your mouse.
 
-Per pet the bot locks the first wanted enchant, uses crystals until the second one appears, then moves on. Super Legendary pets are skipped, and wanted enchants are never rerolled. Moving or resizing the window is handled automatically.
+Per pet the bot locks the first wanted enchant, uses crystals until the second one appears, then moves on. Super Legendary pets are skipped. Moving or resizing the window is handled automatically.
+
+**Re-enchant once** (on by default): old enchants can be worn out (e.g. 100k of 1.5M left) while the enchant book still shows them at full. So in the first pass every pet gets all its enchants rerolled once, even if it already has the combination, and then the combination is rolled again. Turn it off in the control panel to keep pets that already have it. With it off, wanted enchants are never rerolled.
 
 ## Settings
 
 Saved in `config.json` (most are also in the control panel):
 
 - `targets`: your two enchants
+- `reenchant_once`: reroll every pet's enchants once per run (default `true`)
 - `max_crystals_total`: stop after this many crystals (0 = no limit)
 - `only_pets`: grid positions to do, e.g. `[1, 2, 5]` (empty = all)
 - `stop_hotkey`: default `F8`

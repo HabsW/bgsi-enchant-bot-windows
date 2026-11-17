@@ -19,7 +19,7 @@ from . import ocr
 from .config import DEBUG_DIR, ROOT, SECRET_ENCHANTS, TEMPLATE_DIR, known_names
 from .geom import Rect
 from .imgio import imwrite
-from .logic import LOCKED, UNLOCKED, decide_dialog, evaluate
+from .logic import LOCKED, UNLOCKED, Plan, decide_dialog, evaluate
 from .vision import T_BUTTON_STILL, Vision
 
 try:
@@ -101,6 +101,8 @@ class Bot:
         self._pass_used_before = self._done_this_pass = 0
         self._pets, self._grid_title = [], None
         self._progress = 0        # bumps on every crystal used / pet finished
+        self._renewed = set()     # grid positions re-enchanted in this run (reenchant_once)
+        self._forcing = False     # the current crystal re-enchants: reroll even wanted enchants
         self.stats ={"crystals": 0, "pets_done": 0, "pets_seen": 0, "state": "idle"}
 
     # ------------------------------------------------------------ plumbing
@@ -730,7 +732,7 @@ class Bot:
         if scr.kind == "enchants":
             if self._cur is not None:               # a problem happened inside this pet
                 self.finish_pet(self._cur)
-            else:
+            elif not self.cfg.get("reenchant_once"):  # (re-enchanting: the pass does every pet)
                 if self._order is None:
                     self.log("An Enchants screen is open - doing that pet first.")
                 if self.enchant_current("Open pet") == "done":
@@ -786,7 +788,7 @@ class Bot:
     def finish_pet(self, i):
         """Enchant the open pet #i, then mark it handled for this pass."""
         t_pet, used_pet = time.time(), self.stats["crystals"]
-        if self.enchant_current(f"Pet #{i + 1}") == "done":
+        if self.enchant_current(f"Pet #{i + 1}", renew_key=i) == "done":
             self._done_this_pass += 1
             self._progress += 1
             self.status(pets_done=self._done_this_pass)
@@ -872,15 +874,23 @@ class Bot:
         path = self.save_debug(frame, scr, "slots_unreadable")
         raise BotError(f"Could not read the enchant slots ({scr.summary()}). Screenshot: {path}")
 
-    def enchant_current(self, label):
+    def enchant_current(self, label, renew_key=None):
+        """renew_key: the pet's grid position. With reenchant_once, a pet that was not
+        re-enchanted yet in this run first gets ALL slots rerolled once - wanted
+        enchants too, since they may be worn out - and then the combination again."""
         used = closes = lock_rounds = 0
         hint = None
         pre_slots = []
         pre_sig = None
         cfg = self.cfg
+        renew = renew_key is not None and bool(cfg.get("reenchant_once")) \
+            and self._pass_no == 1 and renew_key not in self._renewed
 
         def handle(outcome, named):
-            nonlocal closes, hint
+            nonlocal closes, hint, renew
+            if renew and used and outcome == "rerolled":    # the re-enchant crystal went through
+                renew = False
+                self._renewed.add(renew_key)
             if outcome == "closed":
                 closes += 1
                 hint = named
@@ -892,6 +902,7 @@ class Bot:
 
         fresh = None
         while True:
+            self._forcing = renew                   # the 2/2 dialog is answered Reroll then
             if fresh is not None:                   # already read while verifying a lock
                 (frame, scr, slots), fresh = fresh, None
             else:
@@ -903,8 +914,13 @@ class Bot:
                 self.apply_hint(slots, hint)
                 hint = None
             plan = evaluate(slots, self.targets, cfg["order_matters"], cfg["unlock_unwanted"])
+            if renew:                               # re-enchant: unlock all, reroll every slot
+                plan = Plan(done=False, to_unlock=[s.index for s in slots if s.lock == LOCKED])
             desc = " | ".join(s.describe() for s in slots) or "(no enchants)"
             self.log(f"{label}: {desc}")
+            if renew and not used and not lock_rounds:
+                self.log("   re-enchanting it once: every slot gets rerolled, then the combination "
+                         "is rolled again")
 
             if plan.done:              # both enchants present -> next pet, no locking
                 self.log(f"   {label} DONE: {' + '.join(self.targets)} "
@@ -927,7 +943,7 @@ class Bot:
                     expected[i] = LOCKED
                 for i in plan.to_unlock:
                     s = slots[i]
-                    self.log(f"   unlocking unwanted {s.name or s.raw}")
+                    self.log(f"   unlocking {'' if renew else 'unwanted '}{s.name or s.raw}")
                     self.click(s.lock_xy, f"lock on {s.name or s.raw}", frame,
                                then_hover=self.use_crystal_spot())
                     expected[i] = UNLOCKED
@@ -1111,7 +1127,10 @@ class Bot:
         raw, named, score = self.vision.read_dialog_name(frame, scr)
         if named:
             self._asks_about.add(named)
-        decision, why = decide_dialog(named, pre_slots, self.targets, self.cfg["order_matters"])
+        if self._forcing:
+            decision, why = "reroll", "re-enchanting this pet once - every enchant gets rerolled"
+        else:
+            decision, why = decide_dialog(named, pre_slots, self.targets, self.cfg["order_matters"])
         self.log(f"   2/2 confirmation names '{named or raw or '?'}' -> {decision.upper()} ({why})")
         if not named and not self._dialog_shot_saved:       # once per run: to fix the reading
             self._dialog_shot_saved = True
@@ -1155,6 +1174,9 @@ class Bot:
                 todo.append(f"skip ({plan.reason})")
             else:
                 todo.append("use a Shadow Crystal")
+            if self.cfg.get("reenchant_once"):
+                todo = [f"unlock {s.name or s.raw}" for s in slots if s.lock == LOCKED] + \
+                    ["reroll every slot once (re-enchant)", "roll the combination again"]
             self.log(f"   targets {' + '.join(self.targets)} -> would: {', then '.join(todo)}")
         elif scr.kind == "select_pet":
             pets = self.vision.find_pets(frame, scr)

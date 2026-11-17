@@ -55,6 +55,12 @@ class Main(QtWidgets.QWidget):
         self.unlock = QtWidgets.QCheckBox("Unlock locked enchants that are not in the combination")
         self.unlock.setChecked(self.cfg["unlock_unwanted"])
         form.addRow(self.unlock)
+        self.renew = QtWidgets.QCheckBox("Re-enchant every pet once, even if it already has the combination")
+        self.renew.setToolTip("Old enchants can be worn out (e.g. 100k of 1.5M left) while the enchant book\n"
+                              "still shows them at full. With this on, every pet gets all its enchants\n"
+                              "rerolled once and then the combination rolled again (costs crystals).")
+        self.renew.setChecked(self.cfg["reenchant_once"])
+        form.addRow(self.renew)
         lay.addWidget(box)
 
         box2 = QtWidgets.QGroupBox("Limits")
@@ -123,6 +129,7 @@ class Main(QtWidgets.QWidget):
         cfg["targets"] = [t for t in targets if t and t != NONE]
         cfg["order_matters"] = self.order.isChecked()
         cfg["unlock_unwanted"] = self.unlock.isChecked()
+        cfg["reenchant_once"] = self.renew.isChecked()
         cfg["max_crystals_total"] = self.total.value()
         only = []
         for part in self.only.text().replace(" ", "").split(","):

@@ -29,6 +29,11 @@ DEFAULTS = {
     "order_matters": False,
     # Unlock locked enchants that are not targets (otherwise they block rerolling).
     "unlock_unwanted": True,
+    # Re-enchant every pet once per run, even if it already has the combination:
+    # unlock everything, reroll all slots with one crystal, then roll the
+    # combination again. Old enchants can be worn out (e.g. 100k of 1.5M left)
+    # while the enchant book still shows them at full, so the bot can't tell.
+    "reenchant_once": True,
     # Safety limit: stop after this many Shadow Crystals in total (0 = unlimited).
     "max_crystals_total": 600,
     # On any error: wait error_retry_wait seconds, look again and carry on - up to
@@ -99,7 +104,7 @@ DEFAULTS = {
 # choices (USER_KEYS) but gets the new timings.
 CONFIG_VERSION = 4
 DEFAULTS["config_version"] = CONFIG_VERSION
-USER_KEYS = {"targets", "order_matters", "unlock_unwanted", "max_crystals_total", "only_pets",
+USER_KEYS = {"targets", "order_matters", "unlock_unwanted", "reenchant_once", "max_crystals_total", "only_pets",
              "passes", "stop_hotkey", "stop_on_mouse_move", "window_match", "tesseract_path",
              "error_retries", "error_retry_wait", "save_debug_images", "keep_error_screenshots",
              "extra_enchant_names"}
